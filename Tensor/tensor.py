@@ -1,6 +1,11 @@
 import random
 
 def CreateMatrix(size: tuple, range_: tuple):
+    """
+    Args:
+        size: Es el tamaño de la matriz, por ej. puede ser [3,3] que seria una matriz de 3x3
+        range_: Es el rango de valores que puede tener, por ej. [1,190] que cubre desde el 1 hasta el 190 + 1
+    """
     # size_a es una fila
     # size_b es una columna
     size_a, size_b = size
@@ -18,6 +23,12 @@ def CreateMatrix(size: tuple, range_: tuple):
     return matrix
 
 def SumMatrix(a: list, b: list):
+    """
+    Suma de Matrices:
+    Args:
+        a: Matriz a que quieras sumar
+        b: Matriz b que se va a sumar con la a
+    """
     if len(a) != len(b) or len(a[0]) != len(b[0]):
         return "Las matrices deben tener las mismas dimensiones"
     
@@ -31,8 +42,9 @@ def SumMatrix(a: list, b: list):
     
     return result
 
-class Tensor:
+class TensorConvert:
     def __init__(self, data):
+        """ Conviertes la matriz a un Tensor"""
         self.data = data
         self.shape = self._get_shape(data)
         self.rank = len(self.shape)

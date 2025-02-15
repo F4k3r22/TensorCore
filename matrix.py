@@ -1,7 +1,7 @@
 from Tensor import CreateMatrix, SumMatrix
 
-a = CreateMatrix([3,3],[1,900])
-b = CreateMatrix([3,3],[1, 120])
+a = CreateMatrix([3,3],[-100,900])
+b = CreateMatrix([3,3],[-100, 120])
 
 print(f"Matriz 1:")
 for i in a:

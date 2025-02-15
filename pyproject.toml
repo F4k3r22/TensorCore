@@ -1,6 +1,6 @@
 [project]
 name = "Tensor"
-version = "0.1.0"
+version = "0.1.2"
 description = "Estoy probando la creación de Matrices y Tensores"
 authors = [
     { name = "Rivera.ai/Fredy Rivera", email = "riveraaai200678@gmail.com" }
