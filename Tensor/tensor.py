@@ -1,72 +1,126 @@
 import random
+from typing import List, Tuple, Union
 
-def CreateMatrix(size: tuple, range_: tuple):
+def CreateMatrix(size: tuple, range_: tuple) -> List[List[int]]:
     """
     Args:
         size: Es el tamaño de la matriz, por ej. puede ser [3,3] que seria una matriz de 3x3
         range_: Es el rango de valores que puede tener, por ej. [1,190] que cubre desde el 1 hasta el 190 + 1
+    Returns:
+        List[List[int]]: Matriz generada con valores secuenciales
     """
-    # size_a es una fila
-    # size_b es una columna
     size_a, size_b = size
-    # range_a y range_b son el rango de numeros que va a contener la matriz 
-    # es decir desde el numero a hasta el numero b + 1
     range_a, range_b = range_
     rangenumber = random.randint(range_a, range_b)
-    matrix = []
-    for i in range(size_a):
-        a = []
-        for j in range(size_b):
-            a.append(rangenumber)
-            rangenumber = rangenumber + 1
-        matrix.append(a)
-    return matrix
+    return [[rangenumber + i * size_b + j for j in range(size_b)] for i in range(size_a)]
 
-def SumMatrix(a: list, b: list):
+def SumMatrix(a: List[List[int]], b: List[List[int]]) -> Union[str, List[List[int]]]:
     """
-    Suma de Matrices:
+    Suma de Matrices
     Args:
         a: Matriz a que quieras sumar
         b: Matriz b que se va a sumar con la a
+    Returns:
+        Union[str, List[List[int]]]: Resultado de la suma o mensaje de error
     """
     if len(a) != len(b) or len(a[0]) != len(b[0]):
         return "Las matrices deben tener las mismas dimensiones"
     
-    result = []
-    for i in range(len(a)):
-        row = []
-        for j in range(len(a[0])):
-            # Sumar los elementos correspondientes
-            row.append(a[i][j] + b[i][j])
-        result.append(row)
-    
-    return result
+    return [[a[i][j] + b[i][j] for j in range(len(a[0]))] for i in range(len(a))]
 
-class TensorConvert:
-    def __init__(self, data):
-        """ Conviertes la matriz a un Tensor"""
+class Tensor:
+    def __init__(self, data: Union[List, Tuple]):
+        """
+        Convierte la matriz/lista a un Tensor
+        Args:
+            data: Datos para crear el tensor
+        """
         self.data = data
         self.shape = self._get_shape(data)
         self.rank = len(self.shape)
         
-    def _get_shape(self, data):
-        """ Calcula recursivamente la forma del tensor"""
+    def _get_shape(self, data: Union[List, Tuple]) -> Tuple:
+        """
+        Calcula recursivamente la forma del tensor
+        Args:
+            data: Datos para calcular la forma
+        Returns:
+            Tuple: Forma del tensor
+        """
         shape = []
         current = data
-
         while isinstance(current, (list, tuple)):
             shape.append(len(current))
             if len(current) > 0:
                 current = current[0]
             else:
                 break
-
         return tuple(shape)
     
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Tensor(data={self.data}, shape={self.shape}, rank={self.rank})"
     
     def __getitem__(self, index):
-        """ Acceder a elementos usando corchetes"""
         return self.data[index]
     
+    def transpose(self) -> 'Tensor':
+        """
+        Transpone el tensor (solo para tensores 2D)
+        Returns:
+            Tensor: Tensor transpuesto
+        """
+        if self.rank != 2:
+            raise ValueError("Transpose solo está implementado para tensores 2D")
+        transposed = [[self.data[j][i] for j in range(self.shape[0])] 
+                     for i in range(self.shape[1])]
+        return Tensor(transposed)
+    
+    def multiply(self, other: 'Tensor') -> 'Tensor':
+        """
+        Multiplicación elemento a elemento
+        Args:
+            other: Otro tensor para multiplicar
+        Returns:
+            Tensor: Resultado de la multiplicación
+        """
+        if self.shape != other.shape:
+            raise ValueError("Las formas deben coincidir para multiplicación elemento a elemento")
+        
+        if self.rank == 2:
+            result = [[self.data[i][j] * other.data[i][j] 
+                      for j in range(self.shape[1])] 
+                     for i in range(self.shape[0])]
+            return Tensor(result)
+        raise NotImplementedError("Multiplicación solo implementada para tensores 2D")
+
+    @staticmethod
+    def zeros(shape: Tuple[int, ...]) -> 'Tensor':
+        """
+        Crea un tensor lleno de ceros
+        Args:
+            shape: Forma deseada del tensor
+        Returns:
+            Tensor: Tensor lleno de ceros
+        """
+        def create_zeros(dims):
+            if len(dims) == 1:
+                return [0] * dims[0]
+            return [create_zeros(dims[1:]) for _ in range(dims[0])]
+        
+        return Tensor(create_zeros(shape))
+    
+    @staticmethod
+    def tensor(shape: Tuple[int, ...]) -> 'Tensor':
+        """
+        Crea un tensor 
+        Args:
+            shape: Forma deseada del tensor
+        Returns:
+            Tensor: Tensor lleno de numeros tipo float
+        """
+        def create_tensor(dims):
+            if len(dims) == 1:
+                return [random.random() for _ in range(dims[0])]
+            return [create_tensor(dims[1:]) for _ in range(dims[0])]
+    
+        return Tensor(create_tensor(shape))

@@ -1,18 +1,27 @@
-from Tensor import CreateMatrix, SumMatrix
+from Tensor import CreateMatrix, Tensor
 
 a = CreateMatrix([3,3],[-100,900])
 b = CreateMatrix([3,3],[-100, 120])
 
-print(f"Matriz 1:")
-for i in a:
-    print(i)
+tensor_a = Tensor(a)
+tensor_b = Tensor(b)
 
-print(f"Matriz 2:")
-for j in b:
-    print(j)
+print("Tensor a:")
+print(tensor_a)
 
-suma = SumMatrix(a, b)
+print("Tensor b:")
+print(tensor_b)
 
-print(f"Suma de las 2 matrices")
-for c in suma:
-    print(c)
+print("\nTranspuesta de A:")
+print(tensor_a.transpose())
+
+print("\nMultiplicación elemento a elemento:")
+print(tensor_a.multiply(tensor_b))
+    
+print("\nTensor de ceros 2x3x2:")
+zeros = Tensor.zeros((2, 3, 2))
+print(zeros)
+
+print("\nTensor de 1x768")
+tensor = Tensor.tensor((1,768))
+print(tensor)
