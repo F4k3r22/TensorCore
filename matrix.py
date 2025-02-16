@@ -25,3 +25,7 @@ print(zeros)
 print("\nTensor de 1x768")
 tensor = Tensor.tensor((1,768))
 print(tensor)
+
+print("\nTensor ones_likes")
+one = Tensor.ones_like((2, 3, 2))
+print(one)

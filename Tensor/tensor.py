@@ -1,5 +1,6 @@
 import random
 from typing import List, Tuple, Union
+import math
 
 def CreateMatrix(size: tuple, range_: tuple) -> List[List[int]]:
     """
@@ -29,7 +30,7 @@ def SumMatrix(a: List[List[int]], b: List[List[int]]) -> Union[str, List[List[in
     return [[a[i][j] + b[i][j] for j in range(len(a[0]))] for i in range(len(a))]
 
 class Tensor:
-    def __init__(self, data: Union[List, Tuple]):
+    def __init__(self, data: Union[List, Tuple], requires_grad=False):
         """
         Convierte la matriz/lista a un Tensor
         Args:
@@ -38,6 +39,8 @@ class Tensor:
         self.data = data
         self.shape = self._get_shape(data)
         self.rank = len(self.shape)
+        self.requires_grad = requires_grad
+        self.grad = Tensor.zeros(self.data) if requires_grad else None
         
     def _get_shape(self, data: Union[List, Tuple]) -> Tuple:
         """
@@ -62,6 +65,10 @@ class Tensor:
     
     def __getitem__(self, index):
         return self.data[index]
+
+    def _ensure_grad(self):
+        if self.grad is None:
+            self.grad = Tensor.zeros(self.data)
     
     def transpose(self) -> 'Tensor':
         """
@@ -74,6 +81,36 @@ class Tensor:
         transposed = [[self.data[j][i] for j in range(self.shape[0])] 
                      for i in range(self.shape[1])]
         return Tensor(transposed)
+
+    def backward(self):
+        self._ensure_grad()
+
+        topo = []
+        visited = set()
+
+        def build_topo(t):
+            if t not in visited:
+                visited.add(t)
+                for parent in t._prev:
+                    build_topo(parent)
+                topo.append(t)
+        
+        build_topo(self)
+
+        self.grad = Tensor.ones_like(self.data)
+
+        for t in reversed(topo):
+            pass
+
+    def __add__(self, other):
+
+        other = other if isinstance(other, Tensor) else Tensor(other)
+        out = Tensor(self.data + other.data, requires_grad=self.requires_grad or other.requires_grad)
+
+        def _backward():
+
+            def apply_grad(tensor, grad):
+                pass
     
     def multiply(self, other: 'Tensor') -> 'Tensor':
         """
@@ -92,22 +129,62 @@ class Tensor:
                      for i in range(self.shape[0])]
             return Tensor(result)
         raise NotImplementedError("Multiplicación solo implementada para tensores 2D")
-
+    
     @staticmethod
-    def zeros(shape: Tuple[int, ...]) -> 'Tensor':
+    def zeros(data):
         """
-        Crea un tensor lleno de ceros
+        Crea un tensor lleno de ceros con la misma forma que los datos de entrada
         Args:
-            shape: Forma deseada del tensor
+            data: Datos de referencia para obtener la forma
         Returns:
             Tensor: Tensor lleno de ceros
         """
+        def get_shape(data):
+            shape = []
+            current = data
+            while isinstance(current, (list, tuple)):
+                shape.append(len(current))
+                if len(current) > 0:
+                    current = current[0]
+                else:
+                    break
+            return tuple(shape)
+
         def create_zeros(dims):
             if len(dims) == 1:
                 return [0] * dims[0]
             return [create_zeros(dims[1:]) for _ in range(dims[0])]
         
+        shape = get_shape(data)
         return Tensor(create_zeros(shape))
+
+    @staticmethod
+    def ones_like(data):
+        """
+        Crea un tensor lleno de unos con la misma forma que los datos de entrada
+        Args:
+            data: Datos de referencia para obtener la forma
+        Returns:
+            Tensor: Tensor lleno de unos
+        """
+        def get_shape(data):
+            shape = []
+            current = data
+            while isinstance(current, (list, tuple)):
+                shape.append(len(current))
+                if len(current) > 0:
+                    current = current[0]
+                else:
+                    break
+            return tuple(shape)
+
+        def create_ones(dims):
+            if len(dims) == 1:
+                return [1.0] * dims[0]
+            return [create_ones(dims[1:]) for _ in range(dims[0])]
+    
+        shape = get_shape(data)
+        return Tensor(create_ones(shape))
     
     @staticmethod
     def tensor(shape: Tuple[int, ...]) -> 'Tensor':
