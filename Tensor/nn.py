@@ -30,3 +30,23 @@ class Linear:
     def zero_grad(self):
         self.W.grad = Tensor.zeros(self.W.data)
         self.b.grad = Tensor.zeros(self.b.data)
+
+def softmax(tensor):
+    if tensor.rank == 1:
+        # Handle 1D case
+        data_exp = [math.exp(x) for x in tensor.data]
+        sum_exp = sum(data_exp)
+        result = [x / sum_exp for x in data_exp]
+        return Tensor(result)
+    elif tensor.rank == 2:
+        # Handle 2D case
+        result = []
+        for row in tensor.data:
+            # Apply softmax to each row
+            row_exp = [math.exp(x) for x in row]
+            row_sum = sum(row_exp)
+            row_softmax = [x / row_sum for x in row_exp]
+            result.append(row_softmax)
+        return Tensor(result)
+    else:
+        raise ValueError(f"Softmax not implemented for tensors of rank {tensor.rank}")
