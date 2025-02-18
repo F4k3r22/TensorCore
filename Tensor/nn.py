@@ -50,3 +50,44 @@ def softmax(tensor):
         return Tensor(result)
     else:
         raise ValueError(f"Softmax not implemented for tensors of rank {tensor.rank}")
+    
+def TensorNormalize(X):
+    """
+    Normaliza un tensor 2D usando la fórmula (x - mean) / (std + epsilon)
+    Args:
+        X: Lista de listas de Tensores
+    Returns:
+        Lista de listas de Tensores normalizados
+    """
+    # Primero convertimos los Tensores a una matriz de números
+    X_data = [[x.data for x in row] for row in X]
+    
+    # Calculamos la media por columna
+    def column_mean(matrix, col_idx):
+        col_sum = sum(row[col_idx] for row in matrix)
+        return col_sum / len(matrix)
+    
+    # Calculamos la desviación estándar por columna
+    def column_std(matrix, col_idx, mean):
+        squared_diff_sum = sum((row[col_idx] - mean) ** 2 for row in matrix)
+        return (squared_diff_sum / len(matrix)) ** 0.5
+    
+    # Obtenemos número de filas y columnas
+    n_rows = len(X_data)
+    n_cols = len(X_data[0])
+    
+    # Calculamos media y desviación estándar para cada columna
+    means = [column_mean(X_data, j) for j in range(n_cols)]
+    stds = [column_std(X_data, j, means[j]) for j in range(n_cols)]
+    
+    # Normalizamos los datos
+    epsilon = 1e-8
+    X_norm = []
+    for i in range(n_rows):
+        row_norm = []
+        for j in range(n_cols):
+            normalized_value = (X_data[i][j] - means[j]) / (stds[j] + epsilon)
+            row_norm.append(Tensor(normalized_value, requires_grad=False))
+        X_norm.append(row_norm)
+    
+    return X_norm

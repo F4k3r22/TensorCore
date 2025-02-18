@@ -42,6 +42,9 @@ class Tensor:
         self.rank = len(self.shape)
         self.requires_grad = requires_grad
         self.grad = Tensor.zeros(self.data) if requires_grad else None
+        self._backward = lambda: None
+        self._prev = []
+        self._op = ''
         
     def _get_shape(self, data: Union[List, Tuple]) -> Tuple:
         """
@@ -69,7 +72,17 @@ class Tensor:
 
     def _ensure_grad(self):
         if self.grad is None:
-            self.grad = Tensor.zeros(self.data)
+            # Crear un gradiente con la misma estructura que los datos
+            if isinstance(self.data, list):
+                if isinstance(self.data[0], list):
+                    # Para matrices 2D
+                    self.grad = Tensor([[0 for _ in row] for row in self.data])
+                else:
+                    # Para vectores 1D
+                    self.grad = Tensor([0 for _ in self.data])
+            else:
+                # Para escalares
+                self.grad = Tensor(0)
     
     def transpose(self) -> 'Tensor':
         """
@@ -79,8 +92,24 @@ class Tensor:
         """
         if self.rank != 2:
             raise ValueError("Transpose solo está implementado para tensores 2D")
-        transposed = [[self.data[j][i] for j in range(self.shape[0])] 
-                     for i in range(self.shape[1])]
+    
+        if not self.data or not all(isinstance(row, list) for row in self.data):
+            raise ValueError("Datos inválidos para transposición")
+    
+        rows = len(self.data)
+        cols = len(self.data[0])
+    
+        # Verificar que todas las filas tienen la misma longitud
+        if not all(len(row) == cols for row in self.data):
+            raise ValueError("Todas las filas deben tener la misma longitud")
+    
+        transposed = []
+        for i in range(cols):
+            new_row = []
+            for j in range(rows):
+                new_row.append(self.data[j][i])
+            transposed.append(new_row)
+    
         return Tensor(transposed)
 
     def backward(self):
@@ -104,40 +133,28 @@ class Tensor:
             t._backward()
 
     def __add__(self, other):
-
         other = other if isinstance(other, Tensor) else Tensor(other)
         out = Tensor(self.data + other.data, requires_grad=self.requires_grad or other.requires_grad)
 
         def _backward():
+            if self.requires_grad:
+                self._ensure_grad()
+                self.grad.data = [
+                    [row[i] + other.grad.data[j][i] for i in range(len(row))]
+                    for j, row in enumerate(out.grad.data)
+                ]
+            if other.requires_grad:
+                other._ensure_grad()
+                other.grad.data = [
+                    [row[i] + self.grad.data[j][i] for i in range(len(row))]
+                    for j, row in enumerate(out.grad.data)
+                ]
 
-            def apply_grad(tensor, grad):
-                
-                if isscalar(grad) or self._get_shape(grad) == 1:
-                    tensor.grad += Tensor.sum(grad)
-                else:
-                    while tensor.grad.ndim < grad.ndim:
-                        tensor.grad = Tensor.expand_dims(tensor.grad, axis=-1)
-                    while grad.ndim < tensor.grad.ndim:
-                        grad = Tensor.expand_dims(grad, axis=-1)
+        out._backward = _backward
+        out._prev = [self, other]
+        out._op = '+'
 
-                    if tensor.grad._get_shape != grad._get_shape:
-
-                        axes = tuple(i for i in range(grad.ndim) if tensor.grad._get_shape[i] == 1 and grad._get_shape[i] != 1)
-                        grad = Tensor.sum(grad, axis=axes)
-                    
-                    tensor.grad += grad
-                
-                if self.requires_grad:
-                    self._ensure_grad()
-                    grad_other = out.grad
-
-                    apply_grad(self, grad_other)
-            
-            out._backward = _backward
-            out._prev = [self, other]
-            out._op = '+'
-
-            return out
+        return out
 
     def multiply(self, other: 'Tensor') -> 'Tensor':
         """
@@ -240,58 +257,46 @@ class Tensor:
     @staticmethod
     def zeros(data):
         """
-        Crea un tensor lleno de ceros con la misma forma que los datos de entrada
-        Args:
-            data: Datos de referencia para obtener la forma
-        Returns:
-            Tensor: Tensor lleno de ceros
+            Crea un tensor lleno de ceros con la misma forma que los datos de entrada
         """
-        def get_shape(data):
-            shape = []
-            current = data
-            while isinstance(current, (list, tuple)):
-                shape.append(len(current))
-                if len(current) > 0:
-                    current = current[0]
-                else:
-                    break
-            return tuple(shape)
-
-        def create_zeros(dims):
-            if len(dims) == 1:
-                return [0] * dims[0]
-            return [create_zeros(dims[1:]) for _ in range(dims[0])]
-        
-        shape = get_shape(data)
-        return Tensor(create_zeros(shape))
+        if isinstance(data, (int, float)):
+            return 0
+    
+        if not isinstance(data, (list, tuple)):
+            return 0
+    
+        # Si es una lista vacía
+        if not data:
+            return []
+    
+        # Si es una lista de números
+        if not isinstance(data[0], (list, tuple)):
+            return [0] * len(data)
+    
+        # Si es una lista de listas
+        return [Tensor.zeros(row) for row in data]
 
     @staticmethod
     def ones_like(data):
         """
         Crea un tensor lleno de unos con la misma forma que los datos de entrada
-        Args:
-            data: Datos de referencia para obtener la forma
-        Returns:
-            Tensor: Tensor lleno de unos
         """
-        def get_shape(data):
-            shape = []
-            current = data
-            while isinstance(current, (list, tuple)):
-                shape.append(len(current))
-                if len(current) > 0:
-                    current = current[0]
-                else:
-                    break
-            return tuple(shape)
-
-        def create_ones(dims):
-            if len(dims) == 1:
-                return [1.0] * dims[0]
-            return [create_ones(dims[1:]) for _ in range(dims[0])]
+        if isinstance(data, (int, float)):
+            return 1.0
     
-        shape = get_shape(data)
-        return Tensor(create_ones(shape))
+        if not isinstance(data, (list, tuple)):
+            return 1.0
+    
+        # Si es una lista vacía
+        if not data:
+            return []
+    
+        # Si es una lista de números
+        if not isinstance(data[0], (list, tuple)):
+            return [1.0] * len(data)
+    
+        # Si es una lista de listas
+        return [Tensor.ones_like(row) for row in data]
     
     @staticmethod
     def tensor(shape: Tuple[int, ...]) -> 'Tensor':
@@ -316,26 +321,38 @@ class Tensor:
 
 class Layer:
     def __init__(self, input_size: int, output_size: int):
-        """
-        Capa fully connected de la red neuronal
-        
-        Args:
-            input_size: Número de entradas
-            output_size: Número de neuronas en la capa
-        """
-        # Inicializar pesos y biases con valores aleatorios pequeños
         self.weights = Tensor([[random.uniform(-0.01, 0.01) for _ in range(input_size)] 
                              for _ in range(output_size)], requires_grad=True)
         self.bias = Tensor([[random.uniform(-0.01, 0.01)] for _ in range(output_size)], 
                           requires_grad=True)
         
+        # Inicializar gradientes
+        self.weights.grad = Tensor([[0.0 for _ in range(input_size)] 
+                                  for _ in range(output_size)])
+        self.bias.grad = Tensor([[0.0] for _ in range(output_size)])
+    
     def forward(self, x: Tensor) -> Tensor:
-        # Asegurarnos que x sea 2D
         if x.rank == 1:
-            x = Tensor([x.data])  # Convertir a 2D
+            x = Tensor([x.data])
             
-        # y = wx + b
-        return self.weights.dot(x.transpose()).transpose() + self.bias
+        if len(x.data[0]) != len(self.weights.data[0]):
+            raise ValueError(f"Dimensiones incompatibles: entrada {x.shape}, pesos {self.weights.shape}")
+            
+        result = self.weights.dot(x.transpose())
+        result = result.transpose()
+        
+        batch_size = len(x.data)
+        expanded_bias = Tensor([[b[0] for _ in range(batch_size)] for b in self.bias.data])
+        
+        return result + expanded_bias.transpose()
+
+    def zero_grad(self):
+        """Reinicia los gradientes a cero"""
+        if self.weights.requires_grad:
+            self.weights.grad = Tensor([[0.0 for _ in range(len(self.weights.data[0]))] 
+                                      for _ in range(len(self.weights.data))])
+        if self.bias.requires_grad:
+            self.bias.grad = Tensor([[0.0] for _ in range(len(self.bias.data))])
 
 def sigmoid(x: Tensor) -> Tensor:
     """Función de activación sigmoid"""
@@ -399,26 +416,28 @@ class NeuralNetwork:
         """
         # Forward pass
         y_pred = self.forward(x)
-        
+    
         # Calcular pérdida
         loss = binary_cross_entropy(y_pred, y)
-        
+    
+        # Poner gradientes a cero antes del backward pass
+        for layer in self.layers:
+            layer.zero_grad()
+    
         # Backward pass
         loss.backward()
-        
+    
         # Actualizar pesos
         for layer in self.layers:
             # Actualizar pesos
             for i in range(len(layer.weights.data)):
                 for j in range(len(layer.weights.data[i])):
-                    layer.weights.data[i][j] -= learning_rate * layer.weights.grad.data[i][j]
-            
+                    if layer.weights.grad and layer.weights.grad.data:
+                        layer.weights.data[i][j] -= learning_rate * layer.weights.grad.data[i][j]
+        
             # Actualizar biases
             for i in range(len(layer.bias.data)):
-                layer.bias.data[i][0] -= learning_rate * layer.bias.grad.data[i][0]
-            
-            # Resetear gradientes
-            layer.weights.grad = None
-            layer.bias.grad = None
-            
+                if layer.bias.grad and layer.bias.grad.data:
+                    layer.bias.data[i][0] -= learning_rate * layer.bias.grad.data[i][0]
+    
         return loss.data
